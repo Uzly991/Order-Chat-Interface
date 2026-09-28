@@ -1,0 +1,971 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Newtron Bestell-Assistent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #0055A4;
+    --primary-600: #00478a;
+    --primary-50: #eaf2fb;
+    --primary-100: #d4e5f7;
+    --bg: #f4f6f9;
+    --surface: #ffffff;
+    --surface-2: #f8fafc;
+    --border: #e3e8ef;
+    --text: #0f1b2d;
+    --muted: #5b6b80;
+    --success: #13855b;
+    --success-bg: #e6f6ef;
+    --warning: #a15c00;
+    --warning-bg: #fff4e0;
+    --danger: #b42318;
+    --info: #3b5bdb;
+    --info-bg: #edf1ff;
+    --shadow: 0 1px 2px rgba(15, 27, 45, .05), 0 4px 16px rgba(15, 27, 45, .06);
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; cursor: pointer; }
+
+  /* Header */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; gap: 24px;
+    padding: 0 24px; height: 64px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 20px; letter-spacing: -.02em; color: var(--primary); }
+  .logo-mark {
+    width: 32px; height: 32px; border-radius: 9px; background: var(--primary);
+    display: grid; place-items: center; color: #fff; font-size: 17px;
+  }
+  .logo small { font-weight: 500; font-size: 13px; color: var(--muted); letter-spacing: 0; }
+  nav { display: flex; gap: 4px; height: 100%; }
+  nav button {
+    border: 0; background: none; color: var(--muted); font-weight: 500;
+    padding: 0 14px; height: 100%; border-bottom: 2px solid transparent;
+  }
+  nav button[aria-selected="true"] { color: var(--primary); border-bottom-color: var(--primary); }
+  nav .count { display: inline-block; margin-left: 6px; min-width: 20px; padding: 0 6px; border-radius: 10px; background: var(--primary-50); color: var(--primary); font-size: 12px; }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .mode-pill {
+    display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px;
+    font-size: 13px; font-weight: 500; border: 1px solid var(--border); background: var(--surface-2); color: var(--muted);
+  }
+  .mode-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: #98a2b3; }
+  .mode-pill.ai { color: var(--success); background: var(--success-bg); border-color: transparent; }
+  .mode-pill.ai .dot { background: var(--success); box-shadow: 0 0 0 3px rgba(19,133,91,.18); }
+  .icon-btn { border: 1px solid var(--border); background: var(--surface); border-radius: 10px; width: 38px; height: 38px; display: grid; place-items: center; color: var(--muted); }
+  .icon-btn:hover { color: var(--primary); border-color: var(--primary-100); }
+
+  main { max-width: 1480px; margin: 0 auto; padding: 24px; }
+  .view[hidden] { display: none !important; }
+  .order-view { display: grid; grid-template-columns: 3fr 2fr; gap: 24px; height: calc(100vh - 64px - 48px); min-height: 560px; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+
+  /* Chat */
+  .chat { display: flex; flex-direction: column; overflow: hidden; }
+  .chat-head { padding: 16px 20px 12px; border-bottom: 1px solid var(--border); }
+  .chat-head h2 { margin: 0 0 10px; font-size: 16px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    border: 1px solid var(--primary-100); background: var(--primary-50); color: var(--primary);
+    border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 500; text-align: left;
+    transition: background .15s, transform .15s;
+  }
+  .chip:hover { background: var(--primary-100); transform: translateY(-1px); }
+  .messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; scroll-behavior: smooth; }
+  .msg { display: flex; gap: 10px; max-width: 86%; animation: rise .25s ease-out; }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .avatar { flex: none; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+  .msg.bot .avatar { background: var(--primary); color: #fff; }
+  .msg.user .avatar { background: #e8ecf2; color: var(--muted); }
+  .bubble { padding: 10px 14px; border-radius: 14px; white-space: pre-wrap; word-wrap: break-word; }
+  .msg.bot .bubble { background: var(--surface-2); border: 1px solid var(--border); border-top-left-radius: 4px; }
+  .msg.user .bubble { background: var(--primary); color: #fff; border-top-right-radius: 4px; }
+  .msg.error .bubble { background: var(--warning-bg); border-color: #f5d9a8; }
+  .bubble strong { font-weight: 600; }
+  .suggestions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .suggestions button {
+    border: 1px solid var(--primary); background: var(--surface); color: var(--primary);
+    border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 500;
+  }
+  .suggestions button:hover { background: var(--primary); color: #fff; }
+  .suggestions button.primary { background: var(--primary); color: #fff; }
+  .suggestions button.primary:hover { background: var(--primary-600); }
+  .suggestions.used button { opacity: .45; pointer-events: none; }
+  .summary-card { margin-top: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 13px; white-space: normal; }
+  .summary-card table { width: 100%; border-collapse: collapse; }
+  .summary-card td { padding: 3px 0; }
+  .summary-card td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+  .summary-card .tot td { border-top: 1px solid var(--border); padding-top: 6px; font-weight: 600; }
+  .typing { display: inline-flex; gap: 4px; padding: 14px 16px; }
+  .typing span { width: 7px; height: 7px; border-radius: 50%; background: #98a2b3; animation: blink 1.2s infinite; }
+  .typing span:nth-child(2) { animation-delay: .15s; }
+  .typing span:nth-child(3) { animation-delay: .3s; }
+  .composer { display: flex; gap: 10px; padding: 14px 16px; border-top: 1px solid var(--border); background: var(--surface); }
+  .composer textarea {
+    flex: 1; resize: none; border: 1px solid var(--border); border-radius: 12px; padding: 11px 14px;
+    font: inherit; color: var(--text); background: var(--surface-2); min-height: 46px; max-height: 140px; outline: none;
+  }
+  .composer textarea:focus { border-color: var(--primary); background: var(--surface); box-shadow: 0 0 0 3px var(--primary-50); }
+  .send-btn { border: 0; background: var(--primary); color: #fff; border-radius: 12px; padding: 0 20px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .send-btn:hover { background: var(--primary-600); }
+  .send-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* Order panel */
+  .panel { display: flex; flex-direction: column; overflow: hidden; }
+  .panel-head { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .panel-head h2 { margin: 0; font-size: 16px; }
+  .draft-badge { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+  .draft-badge.ready { background: var(--info-bg); color: var(--info); border-color: transparent; }
+  .panel-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+  .empty { text-align: center; color: var(--muted); padding: 40px 10px; }
+  .empty .big { font-size: 34px; margin-bottom: 6px; }
+  .line {
+    display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 12px; margin-bottom: 8px;
+    border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+  }
+  .line.flash { animation: flash 1.4s ease-out; }
+  .line.removing { animation: out .3s ease-in forwards; }
+  .line .name { font-weight: 600; }
+  .line .sku { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .line .total { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .line .calc { text-align: right; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .stock-warn { grid-column: 1 / -1; margin-top: 6px; font-size: 12px; color: var(--warning); background: var(--warning-bg); border-radius: 6px; padding: 4px 8px; }
+  .meta { margin-top: 14px; display: grid; gap: 8px; }
+  .meta-row { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); }
+  .meta-row.flash { animation: flash 1.4s ease-out; }
+  .meta-row .ico { font-size: 16px; line-height: 1.3; }
+  .meta-row .lbl { font-size: 12px; color: var(--muted); }
+  .meta-row .val { font-weight: 500; }
+  .meta-row .val.missing { color: #98a2b3; font-weight: 400; font-style: italic; }
+  .totals { border-top: 1px solid var(--border); padding: 14px 20px; background: var(--surface-2); }
+  .totals .row { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 14px; }
+  .totals .row.grand { color: var(--text); font-size: 20px; font-weight: 700; margin-top: 4px; }
+  .totals .actions { display: flex; gap: 8px; margin-top: 12px; }
+  .btn { border-radius: 10px; padding: 10px 14px; font-weight: 600; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+  .btn.primary { flex: 1; background: var(--primary); border-color: var(--primary); color: #fff; }
+  .btn.primary:hover { background: var(--primary-600); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  /* History */
+  .history { padding: 0; overflow: hidden; }
+  .history-head { padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .history-head h2 { margin: 0; font-size: 18px; }
+  .kpis { display: flex; gap: 24px; }
+  .kpi .v { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .kpi .l { font-size: 12px; color: var(--muted); }
+  .table-wrap { overflow-x: auto; }
+  table.orders { width: 100%; border-collapse: collapse; }
+  table.orders th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; padding: 12px 20px; background: var(--surface-2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table.orders td { padding: 14px 20px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.orders tr.new td { animation: flash 2s ease-out; }
+  table.orders td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.orders th.num { text-align: right; }
+  .ordno { font-weight: 600; color: var(--primary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .items-sm { color: var(--muted); font-size: 13px; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .badge.eingegangen { background: var(--info-bg); color: var(--info); }
+  .badge.bearbeitung { background: var(--warning-bg); color: var(--warning); }
+  .badge.versendet { background: var(--success-bg); color: var(--success); }
+
+  /* Settings dialog */
+  dialog { border: 0; border-radius: var(--radius); padding: 0; width: min(520px, calc(100vw - 32px)); box-shadow: 0 20px 60px rgba(15,27,45,.25); color: var(--text); }
+  dialog::backdrop { background: rgba(15,27,45,.4); }
+  .dlg { padding: 22px 24px; }
+  .dlg h3 { margin: 0 0 6px; }
+  .dlg p { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
+  .dlg label { display: block; font-size: 13px; font-weight: 600; margin: 12px 0 6px; }
+  .dlg input, .dlg select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; font: inherit; }
+  .dlg .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+  .dlg .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); opacity: 0; background: var(--text); color: #fff; padding: 12px 18px; border-radius: 10px; font-weight: 500; transition: .3s; pointer-events: none; z-index: 50; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes blink { 0%, 80%, 100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+  @keyframes flash { 0% { background: #fff3bf; border-color: #f5c542; } 100% { background: var(--surface); } }
+  @keyframes out { to { opacity: 0; transform: translateX(20px); height: 0; padding: 0; margin: 0; } }
+
+  @media (max-width: 960px) {
+    header { gap: 12px; padding: 0 16px; }
+    .logo small, .mode-pill .txt { display: none; }
+    main { padding: 16px; }
+    .order-view { grid-template-columns: 1fr; height: auto; }
+    .chat { height: 72vh; min-height: 480px; }
+    .msg { max-width: 94%; }
+  }
+  @media (max-width: 560px) {
+    header { gap: 8px; padding: 0 12px; }
+    .logo-text { display: none; }
+    .mode-pill { padding: 8px; }
+    nav button { padding: 0 8px; font-size: 14px; }
+    .kpis { gap: 14px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><div class="logo-mark">N</div><span class="logo-text">newtron</span> <small>Bestell-Assistent</small></div>
+  <nav role="tablist">
+    <button role="tab" aria-selected="true" data-view="order">Neue Bestellung</button>
+    <button role="tab" aria-selected="false" data-view="history">Bestellhistorie <span class="count" id="histCount">3</span></button>
+  </nav>
+  <div class="header-right">
+    <div class="mode-pill" id="modePill" title="Modus"><span class="dot"></span><span class="txt">Demo-Modus</span></div>
+    <button class="icon-btn" id="settingsBtn" title="Einstellungen" aria-label="Einstellungen">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+</header>
+
+<main>
+  <section class="view order-view" id="view-order">
+    <div class="card chat">
+      <div class="chat-head">
+        <h2>Bestellung per Chat aufgeben</h2>
+        <div class="chips" id="chips"></div>
+      </div>
+      <div class="messages" id="messages" aria-live="polite"></div>
+      <form class="composer" id="composer">
+        <textarea id="input" rows="1" placeholder="z. B. „50 M12-Stecker und 10 Netzteile 24 V bis Freitag ans Zentrallager“"></textarea>
+        <button class="send-btn" id="sendBtn" type="submit">
+          Senden
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg>
+        </button>
+      </form>
+    </div>
+
+    <aside class="card panel">
+      <div class="panel-head">
+        <h2>Bestellübersicht</h2>
+        <span class="draft-badge" id="draftBadge">Entwurf</span>
+      </div>
+      <div class="panel-body" id="cartBody"></div>
+      <div class="totals">
+        <div class="row"><span>Netto</span><span id="tNet">0,00 €</span></div>
+        <div class="row"><span>MwSt. 19 %</span><span id="tVat">0,00 €</span></div>
+        <div class="row grand"><span>Gesamt brutto</span><span id="tGross">0,00 €</span></div>
+        <div class="actions">
+          <button class="btn" id="resetBtn" type="button">Verwerfen</button>
+          <button class="btn primary" id="orderBtn" type="button">Bestellung abschließen</button>
+        </div>
+      </div>
+    </aside>
+  </section>
+
+  <section class="view" id="view-history" hidden>
+    <div class="card history">
+      <div class="history-head">
+        <h2>Bestellhistorie</h2>
+        <div class="kpis">
+          <div class="kpi"><div class="v" id="kCount">0</div><div class="l">Bestellungen</div></div>
+          <div class="kpi"><div class="v" id="kSum">0 €</div><div class="l">Volumen netto</div></div>
+          <div class="kpi"><div class="v" id="kOpen">0</div><div class="l">offen</div></div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="orders">
+          <thead><tr><th>Bestellnr.</th><th>Datum</th><th>Positionen</th><th>Lieferung</th><th class="num">Netto</th><th>Status</th></tr></thead>
+          <tbody id="ordersBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<dialog id="settings">
+  <form class="dlg" method="dialog" id="settingsForm">
+    <h3>KI-Anbindung</h3>
+    <p>Ohne API-Schlüssel läuft der Assistent im Demo-Modus mit eingebauter Spracherkennung. Mit einem Claude-API-Schlüssel versteht er beliebige Formulierungen.</p>
+    <label for="apiKey">Claude API-Schlüssel</label>
+    <input id="apiKey" type="password" placeholder="sk-ant-…" autocomplete="off">
+    <div class="hint">Wird nur lokal in diesem Browser gespeichert. Für die Demo gedacht, nicht für den Produktivbetrieb.</div>
+    <label for="model">Modell</label>
+    <select id="model">
+      <option value="claude-opus-5">Claude Opus 5 (empfohlen)</option>
+      <option value="claude-sonnet-5">Claude Sonnet 5 (schneller)</option>
+      <option value="claude-haiku-4-5">Claude Haiku 4.5 (am schnellsten)</option>
+    </select>
+    <div class="row">
+      <button class="btn" value="clear" type="submit">Schlüssel entfernen</button>
+      <button class="btn primary" value="save" type="submit" style="flex:none">Speichern</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+// ─────────────────────────────────────────────────────────────
+//  Demo-Daten (fiktiv) – hier Produkte/Adressen an Newtron anpassen
+// ─────────────────────────────────────────────────────────────
+const CATALOG = [
+  { sku: "NT-1001", name: "Rundsteckverbinder M12, 4-polig", cat: "Steckverbinder", unit: "Stk", price: 8.90, stock: 1200, keys: ["m12", "stecker", "steckverbinder", "4-polig", "4 polig", "vierpolig"] },
+  { sku: "NT-1002", name: "Rundsteckverbinder M12, 8-polig", cat: "Steckverbinder", unit: "Stk", price: 12.40, stock: 35, keys: ["m12", "stecker", "steckverbinder", "8-polig", "8 polig", "achtpolig"] },
+  { sku: "NT-2001", name: "Steuerleitung 3×1,5 mm², grau (Ring 100 m)", cat: "Kabel & Leitungen", unit: "Ring", price: 89.00, stock: 60, keys: ["steuerleitung", "leitung", "kabel", "3x1,5", "3x1.5", "grau", "grauen"] },
+  { sku: "NT-2002", name: "Steuerleitung 5×2,5 mm², blau (Ring 100 m)", cat: "Kabel & Leitungen", unit: "Ring", price: 164.00, stock: 12, keys: ["steuerleitung", "leitung", "kabel", "5x2,5", "5x2.5", "blau", "blauen", "blaue"] },
+  { sku: "NT-2003", name: "Datenleitung Cat.7, S/FTP (Ring 50 m)", cat: "Kabel & Leitungen", unit: "Ring", price: 72.50, stock: 140, keys: ["datenleitung", "netzwerkkabel", "cat7", "cat.7", "cat 7", "lan", "ethernet"] },
+  { sku: "NT-3001", name: "Induktiver Näherungssensor M18, PNP", cat: "Sensorik", unit: "Stk", price: 49.50, stock: 240, keys: ["sensor", "sensoren", "induktiv", "induktive", "induktiven", "näherungssensor", "m18"] },
+  { sku: "NT-3002", name: "Optischer Reflexlichttaster, 2 m", cat: "Sensorik", unit: "Stk", price: 79.00, stock: 18, keys: ["sensor", "sensoren", "optisch", "optische", "optischen", "lichttaster", "reflexlichttaster", "lichtschranke"] },
+  { sku: "NT-4001", name: "Hutschienen-Netzteil 24 V / 5 A", cat: "Stromversorgung", unit: "Stk", price: 118.00, stock: 75, keys: ["netzteil", "netzteile", "hutschienen-netzteil", "24v", "24 v", "5a", "5 a", "kleine netzteil", "kleinen netzteile"] },
+  { sku: "NT-4002", name: "Hutschienen-Netzteil 24 V / 10 A", cat: "Stromversorgung", unit: "Stk", price: 189.00, stock: 8, keys: ["netzteil", "netzteile", "hutschienen-netzteil", "24v", "24 v", "10a", "10 a", "große netzteil", "großen netzteile"] },
+  { sku: "NT-5001", name: "Leitungsschutzschalter B16, 1-polig", cat: "Schutztechnik", unit: "Stk", price: 6.80, stock: 900, keys: ["leitungsschutzschalter", "ls-schalter", "ls schalter", "sicherung", "sicherungen", "sicherungsautomat", "b16"] },
+  { sku: "NT-5002", name: "FI-Schutzschalter 40 A / 30 mA, 4-polig", cat: "Schutztechnik", unit: "Stk", price: 42.90, stock: 150, keys: ["fi", "fi-schalter", "fi-schutzschalter", "rcd", "fehlerstromschutzschalter"] },
+  { sku: "NT-6001", name: "Kabelbinder 200 × 4,8 mm, schwarz (VE 100)", cat: "Verbrauchsmaterial", unit: "VE", price: 4.20, stock: 3000, keys: ["kabelbinder", "binder"] },
+  { sku: "NT-6002", name: "Aderendhülsen-Sortiment, 1.200 tlg.", cat: "Verbrauchsmaterial", unit: "Box", price: 24.90, stock: 45, keys: ["aderendhülsen", "aderendhülse", "hülsen", "sortiment"] },
+  { sku: "NT-7001", name: "Klemmenkasten IP66, 160 × 160 mm", cat: "Gehäuse", unit: "Stk", price: 38.00, stock: 110, keys: ["klemmenkasten", "klemmenkästen", "gehäuse", "abzweigdose", "kasten"] },
+  { sku: "NT-7002", name: "LED-Signalsäule grün/gelb/rot", cat: "Signaltechnik", unit: "Stk", price: 64.00, stock: 22, keys: ["signalsäule", "signalsäulen", "ampel", "signalleuchte", "led-säule"] },
+];
+
+const ADDRESSES = [
+  { id: "zentrallager", label: "Zentrallager Nürnberg", full: "Newtron Zentrallager, Hafenstraße 12, 90451 Nürnberg", keys: ["zentrallager", "nürnberg", "hauptlager", "lager"] },
+  { id: "werk-sued", label: "Werk Süd Augsburg", full: "Newtron Werk Süd, Industriestraße 4, 86167 Augsburg", keys: ["augsburg", "werk süd", "süd"] },
+  { id: "werk-nord", label: "Werk Nord Hamburg", full: "Newtron Werk Nord, Am Kanal 27, 21079 Hamburg", keys: ["hamburg", "werk nord", "nord"] },
+];
+
+const EXAMPLES = [
+  "Ich brauche 50 M12-Stecker 4-polig und 10 Netzteile 24 V / 5 A, Lieferung bis nächsten Freitag ans Zentrallager.",
+  "20 Ringe von der blauen Steuerleitung bis Ende nächster Woche nach Augsburg",
+  "Wir brauchen Netzteile, so 15 Stück",
+  "Was habt ihr an Sensoren im Angebot?",
+];
+
+const VAT = 0.19;
+const today = new Date();
+const year = today.getFullYear();
+const daysAgo = (n) => { const d = new Date(today); d.setDate(d.getDate() - n); return d; };
+const daysAhead = (n) => { const d = new Date(today); d.setDate(d.getDate() + n); return d; };
+
+const orders = [
+  { no: `NT-${year}-0412`, date: daysAgo(9), items: [{ sku: "NT-2003", qty: 12 }, { sku: "NT-1001", qty: 200 }], delivery: daysAgo(3), address: ADDRESSES[0].label, status: "versendet" },
+  { no: `NT-${year}-0431`, date: daysAgo(4), items: [{ sku: "NT-5001", qty: 150 }, { sku: "NT-5002", qty: 20 }, { sku: "NT-6001", qty: 30 }], delivery: daysAhead(2), address: ADDRESSES[1].label, status: "bearbeitung" },
+  { no: `NT-${year}-0447`, date: daysAgo(1), items: [{ sku: "NT-3001", qty: 40 }, { sku: "NT-7002", qty: 6 }], delivery: daysAhead(6), address: ADDRESSES[2].label, status: "eingegangen" },
+];
+let orderSeq = 448;
+
+// ─────────────────────────────────────────────────────────────
+//  Hilfsfunktionen
+// ─────────────────────────────────────────────────────────────
+const $ = (s) => document.querySelector(s);
+const eur = (v) => v.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+const eur0 = (v) => v.toLocaleString("de-DE", { maximumFractionDigits: 0 }) + " €";
+const qtyFmt = (n) => n.toLocaleString("de-DE");
+const dateFmt = (d) => d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" });
+const dateShort = (d) => d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const fromIso = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const bySku = (sku) => CATALOG.find((p) => p.sku === sku);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const md = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function toast(text) {
+  const t = $("#toast");
+  t.textContent = text;
+  t.classList.add("show");
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Warenkorb-Zustand
+// ─────────────────────────────────────────────────────────────
+const cart = { items: [], delivery: null, address: null, awaitingConfirm: false };
+let flashKeys = new Set();
+
+const cartNet = () => cart.items.reduce((s, it) => s + bySku(it.sku).price * it.qty, 0);
+const orderNet = (o) => o.items.reduce((s, it) => s + bySku(it.sku).price * it.qty, 0);
+
+const Cart = {
+  add(sku, qty) {
+    if (!bySku(sku) || !(qty > 0)) return false;
+    const ex = cart.items.find((i) => i.sku === sku);
+    if (ex) ex.qty += qty; else cart.items.push({ sku, qty });
+    flashKeys.add(sku); cart.awaitingConfirm = false; return true;
+  },
+  setQty(sku, qty) {
+    const ex = cart.items.find((i) => i.sku === sku);
+    if (!ex) return this.add(sku, qty);
+    if (qty <= 0) return this.remove(sku);
+    ex.qty = qty; flashKeys.add(sku); cart.awaitingConfirm = false; return true;
+  },
+  remove(sku) {
+    const before = cart.items.length;
+    cart.items = cart.items.filter((i) => i.sku !== sku);
+    cart.awaitingConfirm = false; return cart.items.length < before;
+  },
+  setDelivery(d) { cart.delivery = d; flashKeys.add("delivery"); cart.awaitingConfirm = false; },
+  setAddress(a) { cart.address = a; flashKeys.add("address"); cart.awaitingConfirm = false; },
+  clear() { cart.items = []; cart.delivery = null; cart.address = null; cart.awaitingConfirm = false; },
+  missing() {
+    const m = [];
+    if (!cart.items.length) m.push("items");
+    if (!cart.delivery) m.push("delivery");
+    if (!cart.address) m.push("address");
+    return m;
+  },
+  stockIssues() { return cart.items.filter((i) => i.qty > bySku(i.sku).stock); },
+};
+
+function placeOrder() {
+  const no = `NT-${year}-${String(orderSeq++).padStart(4, "0")}`;
+  const order = {
+    no, date: new Date(), items: cart.items.map((i) => ({ ...i })), delivery: cart.delivery,
+    address: cart.address.label, status: "eingegangen", fresh: true,
+  };
+  orders.push(order);
+  for (const it of order.items) { const p = bySku(it.sku); p.stock = Math.max(0, p.stock - it.qty); }
+  // Kleine Live-Statusänderung für die Demo
+  setTimeout(() => { order.status = "bearbeitung"; renderHistory(); }, 25000);
+  Cart.clear();
+  renderAll();
+  return order;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Rendering
+// ─────────────────────────────────────────────────────────────
+function renderCart() {
+  const body = $("#cartBody");
+  const lines = cart.items.map((it) => {
+    const p = bySku(it.sku);
+    const warn = it.qty > p.stock
+      ? `<div class="stock-warn">⚠ Nur ${qtyFmt(p.stock)} ${p.unit} auf Lager – Rest (${qtyFmt(it.qty - p.stock)}) als Nachlieferung</div>` : "";
+    return `<div class="line${flashKeys.has(it.sku) ? " flash" : ""}">
+      <div><div class="name">${esc(p.name)}</div><div class="sku">${p.sku} · ${esc(p.cat)}</div></div>
+      <div><div class="total">${eur(p.price * it.qty)}</div><div class="calc">${qtyFmt(it.qty)} ${p.unit} × ${eur(p.price)}</div></div>
+      ${warn}
+    </div>`;
+  }).join("");
+
+  const meta = `<div class="meta">
+    <div class="meta-row${flashKeys.has("delivery") ? " flash" : ""}"><span class="ico">📅</span><div><div class="lbl">Wunsch-Liefertermin</div>
+      <div class="val${cart.delivery ? "" : " missing"}">${cart.delivery ? dateFmt(cart.delivery) : "noch offen"}</div></div></div>
+    <div class="meta-row${flashKeys.has("address") ? " flash" : ""}"><span class="ico">📍</span><div><div class="lbl">Lieferadresse</div>
+      <div class="val${cart.address ? "" : " missing"}">${cart.address ? esc(cart.address.full) : "noch offen"}</div></div></div>
+  </div>`;
+
+  body.innerHTML = (cart.items.length ? lines : `<div class="empty"><div class="big">🛒</div>Noch keine Positionen.<br>Beschreibe einfach im Chat, was du brauchst.</div>`) + meta;
+
+  const net = cartNet();
+  $("#tNet").textContent = eur(net);
+  $("#tVat").textContent = eur(net * VAT);
+  $("#tGross").textContent = eur(net * (1 + VAT));
+  $("#orderBtn").disabled = !cart.items.length;
+  $("#resetBtn").disabled = !cart.items.length && !cart.delivery && !cart.address;
+  const badge = $("#draftBadge");
+  const ready = Cart.missing().length === 0;
+  badge.textContent = cart.awaitingConfirm ? "Wartet auf Bestätigung" : ready ? "Bereit zur Bestellung" : cart.items.length ? `${cart.items.length} Position${cart.items.length > 1 ? "en" : ""}` : "Entwurf";
+  badge.classList.toggle("ready", ready);
+  flashKeys = new Set();
+}
+
+const STATUS = { eingegangen: "Eingegangen", bearbeitung: "In Bearbeitung", versendet: "Versendet" };
+function renderHistory() {
+  const rows = [...orders].sort((a, b) => b.date - a.date).map((o) => {
+    const items = o.items.map((i) => `${qtyFmt(i.qty)}× ${esc(bySku(i.sku).name)}`).join("<br>");
+    return `<tr class="${o.fresh ? "new" : ""}">
+      <td><span class="ordno">${o.no}</span></td>
+      <td>${dateShort(o.date)}</td>
+      <td class="items-sm">${items}</td>
+      <td>${dateShort(o.delivery)}<div class="items-sm">${esc(o.address)}</div></td>
+      <td class="num">${eur(orderNet(o))}</td>
+      <td><span class="badge ${o.status}">${STATUS[o.status]}</span></td>
+    </tr>`;
+  }).join("");
+  $("#ordersBody").innerHTML = rows;
+  orders.forEach((o) => (o.fresh = false));
+  $("#histCount").textContent = orders.length;
+  $("#kCount").textContent = orders.length;
+  $("#kSum").textContent = eur0(orders.reduce((s, o) => s + orderNet(o), 0));
+  $("#kOpen").textContent = orders.filter((o) => o.status !== "versendet").length;
+}
+
+function renderAll() { renderCart(); renderHistory(); }
+
+function summaryHtml() {
+  const net = cartNet();
+  const rows = cart.items.map((it) => { const p = bySku(it.sku); return `<tr><td>${qtyFmt(it.qty)} × ${esc(p.name)}</td><td>${eur(p.price * it.qty)}</td></tr>`; }).join("");
+  return `<div class="summary-card"><table>${rows}
+    <tr><td>Lieferung: ${cart.delivery ? dateFmt(cart.delivery) : "–"}</td><td></td></tr>
+    <tr><td>An: ${cart.address ? esc(cart.address.full) : "–"}</td><td></td></tr>
+    <tr class="tot"><td>Gesamt brutto (inkl. 19 % MwSt.)</td><td>${eur(net * (1 + VAT))}</td></tr></table></div>`;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Chat-UI
+// ─────────────────────────────────────────────────────────────
+const msgBox = $("#messages");
+function addMessage(role, text, { suggestions = [], summary = false, error = false } = {}) {
+  const el = document.createElement("div");
+  el.className = `msg ${role}${error ? " error" : ""}`;
+  const sugg = suggestions.length
+    ? `<div class="suggestions">${suggestions.map((s, i) => `<button type="button" class="${i === 0 && /bestätig/i.test(s) ? "primary" : ""}">${esc(s)}</button>`).join("")}</div>` : "";
+  el.innerHTML = `<div class="avatar">${role === "bot" ? "N" : "Du"}</div>
+    <div><div class="bubble">${md(text)}${summary ? summaryHtml() : ""}</div>${sugg}</div>`;
+  el.querySelectorAll(".suggestions button").forEach((b) =>
+    b.addEventListener("click", () => { b.parentElement.classList.add("used"); send(b.textContent); }));
+  el.addEventListener("animationend", () => (el.style.animation = "none"), { once: true });
+  msgBox.appendChild(el);
+  msgBox.scrollTop = msgBox.scrollHeight;
+}
+function showTyping() {
+  const el = document.createElement("div");
+  el.className = "msg bot"; el.id = "typing";
+  el.innerHTML = `<div class="avatar">N</div><div class="bubble typing"><span></span><span></span><span></span></div>`;
+  msgBox.appendChild(el); msgBox.scrollTop = msgBox.scrollHeight;
+}
+const hideTyping = () => $("#typing")?.remove();
+
+let busy = false;
+async function send(text) {
+  text = text.trim();
+  if (!text || busy) return;
+  busy = true; $("#sendBtn").disabled = true;
+  document.querySelectorAll(".suggestions:not(.used)").forEach((s) => s.classList.add("used"));
+  addMessage("user", text);
+  $("#input").value = ""; autoGrow();
+  showTyping();
+  let result;
+  try {
+    result = settings.apiKey ? await claudeTurn(text) : await localTurn(text);
+  } catch (err) {
+    console.error(err);
+    hideTyping();
+    addMessage("bot", "Die KI ist gerade nicht erreichbar – ich übernehme im Offline-Modus, damit es weitergeht.", { error: true });
+    showTyping();
+    result = await localTurn(text);
+  }
+  hideTyping();
+  renderCart();
+  addMessage("bot", result.reply, { suggestions: result.suggestions || [], summary: result.summary });
+  if (result.order) {
+    toast(`Bestellung ${result.order.no} angelegt`);
+  }
+  busy = false; $("#sendBtn").disabled = false; $("#input").focus();
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Claude-Anbindung (Anthropic SDK im Browser)
+// ─────────────────────────────────────────────────────────────
+let AnthropicSDK = null;
+const apiHistory = [];
+
+const RESPONSE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["reply", "actions", "suggestions", "show_summary"],
+  properties: {
+    reply: { type: "string", description: "Antwort an den Nutzer auf Deutsch, kurz und freundlich. **fett** erlaubt." },
+    actions: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["type", "sku", "quantity", "value"],
+        properties: {
+          type: { type: "string", enum: ["add_item", "update_quantity", "remove_item", "set_delivery_date", "set_address", "clear_cart", "confirm_order"] },
+          sku: { type: ["string", "null"], description: "Artikelnummer bei Positions-Aktionen, sonst null" },
+          quantity: { type: ["integer", "null"], description: "Menge bei add_item (wird addiert) und update_quantity (neuer Absolutwert), sonst null" },
+          value: { type: ["string", "null"], description: "set_delivery_date: Datum YYYY-MM-DD; set_address: Adress-ID; sonst null" },
+        },
+      },
+    },
+    suggestions: { type: "array", items: { type: "string" }, description: "0–4 kurze Antwortoptionen als klickbare Buttons" },
+    show_summary: { type: "boolean", description: "true, wenn die Bestellzusammenfassung zur Bestätigung angezeigt werden soll" },
+  },
+};
+
+function systemPrompt() {
+  return `Du bist der Bestell-Assistent von Newtron. Mitarbeitende geben Bestellungen per Chat in natürlicher Sprache auf; du pflegst den Warenkorb über Aktionen, die die App ausführt.
+
+Heute ist ${dateFmt(today)} (${iso(today)}).
+
+PRODUKTKATALOG (sku | Name | Kategorie | Einheit | Nettopreis € | Lagerbestand):
+${CATALOG.map((p) => `${p.sku} | ${p.name} | ${p.cat} | ${p.unit} | ${p.price.toFixed(2)} | ${p.stock}`).join("\n")}
+
+LIEFERADRESSEN (id | Adresse):
+${ADDRESSES.map((a) => `${a.id} | ${a.full}`).join("\n")}
+
+Regeln:
+- Antworte immer auf Deutsch (auch auf englische Anfragen, außer der Nutzer bittet ausdrücklich um Englisch), knapp und professionell, Preise im Format 1.234,56 €.
+- Erkenne Mengen, Artikel, Termine und Adressen auch aus ungenauen Angaben („so 20 von den blauen“, „bis Ende nächster Woche“). Relative Termine rechnest du ab heute in ein Datum um; Liefertermine müssen in der Zukunft liegen, Wochenenden vermeiden.
+- Ist ein Artikel mehrdeutig (z. B. „Netzteile“ passt auf mehrere), führe KEINE add_item-Aktion aus, sondern frage nach und gib die Varianten als suggestions an (z. B. „15× Netzteil 24 V / 5 A“). Artikel, die es nicht gibt, nicht erfinden: sag das und schlage passende Alternativen vor.
+- Übersteigt eine Menge den Lagerbestand, füge die Position trotzdem hinzu, weise klar darauf hin und biete Teillieferung (sofort verfügbarer Teil, Rest später) oder einen späteren Termin als suggestions an.
+- Änderungen („mach aus den 50 lieber 80“, „entferne …“) setzt du mit update_quantity bzw. remove_item um.
+- Fehlen Liefertermin oder Lieferadresse, frage gezielt danach, sobald Artikel im Warenkorb sind (Adressen als suggestions anbieten).
+- Will der Nutzer abschließen und alles ist vollständig: setze show_summary=true, fasse kurz zusammen und biete suggestions ["Bestellung bestätigen", "Noch etwas ändern"] an. Erst wenn der Nutzer danach ausdrücklich bestätigt, sende die Aktion confirm_order (ohne weitere Aktionen); die App vergibt dann die Bestellnummer und du bedankst dich kurz.
+- Produktfragen („was habt ihr an Sensoren?“) beantwortest du aus dem Katalog mit Preis und Verfügbarkeit.
+- Der aktuelle Warenkorb wird dir mit jeder Nachricht mitgeschickt; er ist die Wahrheit.`;
+}
+
+function cartSnapshot() {
+  return JSON.stringify({
+    positionen: cart.items.map((i) => ({ sku: i.sku, name: bySku(i.sku).name, menge: i.qty, lager: bySku(i.sku).stock })),
+    liefertermin: cart.delivery ? iso(cart.delivery) : null,
+    lieferadresse: cart.address ? cart.address.id : null,
+    wartet_auf_bestaetigung: cart.awaitingConfirm,
+  });
+}
+
+async function claudeTurn(text) {
+  if (!AnthropicSDK) {
+    AnthropicSDK = (await import("https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.128.0/+esm")).default;
+  }
+  const client = new AnthropicSDK({ apiKey: settings.apiKey, dangerouslyAllowBrowser: true, maxRetries: 1, timeout: 60000 });
+  const userMsg = { role: "user", content: `Aktueller Warenkorb: ${cartSnapshot()}\n\nNachricht: ${text}` };
+  const params = {
+    model: settings.model,
+    max_tokens: 4000,
+    system: systemPrompt(),
+    messages: [...apiHistory, userMsg],
+    output_config: { format: { type: "json_schema", schema: RESPONSE_SCHEMA } },
+  };
+  if (!settings.model.startsWith("claude-haiku")) params.output_config.effort = "low";
+  const res = await client.messages.create(params);
+  if (res.stop_reason === "refusal") throw new Error("refusal");
+  const raw = res.content.find((b) => b.type === "text")?.text;
+  const data = JSON.parse(raw);
+  apiHistory.push(userMsg, { role: "assistant", content: raw });
+  return applyActions(data);
+}
+
+function applyActions(data) {
+  let order = null;
+  for (const a of data.actions || []) {
+    switch (a.type) {
+      case "add_item": Cart.add(a.sku, a.quantity); break;
+      case "update_quantity": Cart.setQty(a.sku, a.quantity); break;
+      case "remove_item": Cart.remove(a.sku); break;
+      case "set_delivery_date": if (a.value && /^\d{4}-\d{2}-\d{2}$/.test(a.value)) Cart.setDelivery(fromIso(a.value)); break;
+      case "set_address": { const ad = ADDRESSES.find((x) => x.id === a.value); if (ad) Cart.setAddress(ad); break; }
+      case "clear_cart": Cart.clear(); break;
+      case "confirm_order": if (!Cart.missing().length) order = placeOrder(); break;
+    }
+  }
+  if (data.show_summary && !order) cart.awaitingConfirm = true;
+  let reply = data.reply;
+  if (order) reply += `\n\nBestellnummer: **${order.no}**`;
+  return { reply, suggestions: data.suggestions, summary: data.show_summary && !order, order };
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Demo-Modus: regelbasierte Sprachverarbeitung (ohne API)
+// ─────────────────────────────────────────────────────────────
+const NUM_WORDS = { ein: 1, eine: 1, einen: 1, zwei: 2, drei: 3, vier: 4, fünf: 5, sechs: 6, sieben: 7, acht: 8, neun: 9, zehn: 10, elf: 11, zwölf: 12, fünfzehn: 15, zwanzig: 20, dreißig: 30, vierzig: 40, fünfzig: 50, hundert: 100, dutzend: 12 };
+const WEEKDAYS = { montag: 1, dienstag: 2, mittwoch: 3, donnerstag: 4, freitag: 5, samstag: 6, sonntag: 0 };
+let pending = null; // offene Rückfrage: { qty, options: [sku] }
+
+function norm(s) { return s.toLowerCase().replace(/×/g, "x").replace(/\s+/g, " "); }
+
+function nextWorkday(d) { while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1); return d; }
+
+function parseDate(t) {
+  let m;
+  if ((m = t.match(/\b(\d{1,2})\.(\d{1,2})\.(\d{2,4})?/))) {
+    const y = m[3] ? (m[3].length === 2 ? 2000 + +m[3] : +m[3]) : year;
+    const d = new Date(y, +m[2] - 1, +m[1]);
+    if (!m[3] && d < today) d.setFullYear(y + 1);
+    return d;
+  }
+  if (/übermorgen/.test(t)) return nextWorkday(daysAhead(2));
+  if (/\bmorgen\b/.test(t)) return nextWorkday(daysAhead(1));
+  if (/ende (der )?nächste[nr]? woche/.test(t)) { const d = new Date(today); d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7) + 7); return d; }
+  if (/ende (der|dieser) woche/.test(t)) { const d = new Date(today); d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7 || 7)); return d; }
+  if ((m = t.match(/in (\d+|zwei|drei|vier) wochen/))) return nextWorkday(daysAhead(7 * (+m[1] || NUM_WORDS[m[1]])));
+  if ((m = t.match(/in (\d+) (werk)?tagen/))) return nextWorkday(daysAhead(+m[1]));
+  if (/nächste woche/.test(t)) { const d = new Date(today); d.setDate(d.getDate() + ((1 - d.getDay() + 7) % 7 || 7)); return d; }
+  for (const [name, wd] of Object.entries(WEEKDAYS)) {
+    if (new RegExp(`\\b${name}`).test(t)) {
+      const d = new Date(today);
+      d.setDate(d.getDate() + ((wd - d.getDay() + 7) % 7 || 7));
+      return d;
+    }
+  }
+  return null;
+}
+
+function parseAddress(t) {
+  return ADDRESSES.find((a) => a.keys.some((k) => t.includes(k))) || null;
+}
+
+// Findet Produkte, die zu einem Textabschnitt passen, mit Punktzahl
+function matchProducts(seg) {
+  const scored = CATALOG.map((p) => {
+    let score = 0;
+    for (const k of p.keys) if (seg.includes(k)) score += k.length > 4 ? 2 : 1;
+    if (seg.includes(p.sku.toLowerCase())) score += 10;
+    return { p, score };
+  }).filter((x) => x.score > 0);
+  if (!scored.length) return [];
+  const max = Math.max(...scored.map((x) => x.score));
+  return scored.filter((x) => x.score === max).map((x) => x.p);
+}
+
+// Zerlegt „50 M12-Stecker und 10 Netzteile“ in Mengen-/Artikel-Abschnitte
+const QTY_RE = /(\d+(?:[.,]\d+)?|\b(?:ein|eine|einen|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|fünfzehn|zwanzig|dreißig|vierzig|fünfzig|hundert|dutzend)\b)\s*(?:x\b|stk\.?|stück|ringe?|ve|boxen?|packungen?|mal)?\s*(?:von (?:den|der|dem) )?/g;
+function isQuantity(text, m) {
+  const before = text.slice(Math.max(0, m.index - 4), m.index);
+  const rest = text.slice(m.index);
+  if (/[a-zäöü.\-]$/.test(before)) return false;                      // M12, Cat.7, B16
+  if (/(\d\s*x\s*|kw\s*|\/\s*)$/.test(before)) return false;          // 3x1,5 · KW 42 · 24 V / 5 A
+  if (/^\d+(?:[.,]\d+)?\s*(v|a|ma|mm|mm²|m|-polig|polig|tlg|wochen?|tage?n?|werktage?n?|uhr)\b/.test(rest)) return false;
+  if (/^\d+(?:[.,]\d+)?\s*x\s*\d/.test(rest)) return false;
+  if (/^(ein|eine|einen)\b/.test(m[1]) && !/^(ein|eine|einen)\s+(stück|ring|ve|box|packung)/.test(rest)) return false;
+  return true;
+}
+function extractLines(t) {
+  const clean = t.replace(/\b(\d{1,2})\.(\d{1,2})\.(\d{2,4})?/g, " ");
+  const hits = [...clean.matchAll(QTY_RE)].filter((m) => isQuantity(clean, m));
+  return hits.map((h, i) => {
+    const prevEnd = i ? hits[i - 1].index + hits[i - 1][0].length : 0;
+    const next = hits[i + 1];
+    return {
+      qty: NUM_WORDS[h[1]] ?? Math.round(parseFloat(h[1].replace(",", "."))),
+      seg: clean.slice(h.index + h[0].length, next ? next.index : undefined),
+      before: clean.slice(prevEnd, h.index), // „Netzteile, so 15 Stück“
+    };
+  }).filter((l) => l.qty > 0);
+}
+
+function stockNote(p, qty) {
+  if (qty <= p.stock) return "";
+  return `\n⚠ Von **${p.name}** sind nur **${qtyFmt(p.stock)} ${p.unit}** sofort verfügbar. Die restlichen ${qtyFmt(qty - p.stock)} ${p.unit} können wir als Teillieferung in ca. 10 Werktagen nachliefern – oder wir verschieben den gesamten Termin.`;
+}
+
+function nextStepPrompt(parts, sugg) {
+  const miss = Cart.missing();
+  if (miss.includes("items")) return;
+  if (miss.includes("delivery")) {
+    parts.push("Bis wann wird die Ware benötigt?");
+    sugg.push("Bis nächsten Freitag", "In 2 Wochen", "So schnell wie möglich");
+  } else if (miss.includes("address")) {
+    parts.push("An welchen Standort soll geliefert werden?");
+    sugg.push(...ADDRESSES.map((a) => `An ${a.label}`));
+  } else {
+    parts.push("Alles da. Soll ich die Bestellung abschließen, oder möchtest du noch etwas ergänzen?");
+    sugg.push("Bestellung abschließen", "Noch etwas hinzufügen");
+  }
+}
+
+async function localTurn(input) {
+  await sleep(650 + Math.random() * 500);
+  const t = norm(input);
+  const parts = [];
+  const sugg = [];
+
+  // Bestätigung einer angezeigten Zusammenfassung
+  if (cart.awaitingConfirm && /(bestätig|^ja\b|passt|abschicken|absenden|jawohl|go\b|okay|^ok\b)/.test(t)) {
+    const order = placeOrder();
+    return { reply: `Vielen Dank! Die Bestellung ist eingegangen.\n\nBestellnummer: **${order.no}**\nDu findest sie jetzt in der Bestellhistorie. Eine Bestätigung geht an das Einkaufsteam.`, suggestions: ["Neue Bestellung starten"], order };
+  }
+  if (/neue bestellung/.test(t)) { Cart.clear(); pending = null; return { reply: "Gerne! Was darf es diesmal sein?", suggestions: EXAMPLES.slice(0, 2) }; }
+  if (/(verwerf|lösch alles|alles löschen|warenkorb leeren|von vorne)/.test(t)) { Cart.clear(); pending = null; return { reply: "Ich habe den Warenkorb geleert. Womit fangen wir an?" }; }
+
+  // Produktfrage
+  if (/(was habt|was gibt|im angebot|welche .* (habt|gibt)|zeig mir|sortiment|katalog)/.test(t) && !/\d/.test(t)) {
+    const hits = CATALOG.filter((p) => p.keys.some((k) => t.includes(k)) || t.includes(p.cat.toLowerCase().slice(0, 6)));
+    const list = hits.length ? hits : CATALOG.slice(0, 6);
+    return {
+      reply: `${hits.length ? "Folgende passende Artikel haben wir im Sortiment:" : "Hier ein Auszug aus unserem Sortiment:"}\n\n` +
+        list.map((p) => `• **${p.name}** (${p.sku}) – ${eur(p.price)} / ${p.unit}, ${p.stock < 40 ? `nur noch ${p.stock} auf Lager` : "gut verfügbar"}`).join("\n") +
+        "\n\nWie viele darf ich dir notieren?",
+      suggestions: list.slice(0, 3).map((p) => `10× ${p.name}`),
+    };
+  }
+
+  // Auflösung einer offenen Rückfrage („das 24 V / 5 A“)
+  if (pending) {
+    const opts = pending.options.map(bySku);
+    const qtyInText = extractLines(t)[0]?.qty;
+    const exact = opts.filter((p) => t.includes(norm(p.name)) || t.includes(p.sku.toLowerCase()));
+    const chosen = exact.length ? exact : opts.filter((p) => p.keys.some((k) => !opts.every((o) => o.keys.includes(k)) && t.includes(k)));
+    if (chosen.length === 1) {
+      const p = chosen[0]; const qty = qtyInText || pending.qty;
+      Cart.add(p.sku, qty); pending = null;
+      parts.push(`Notiert: **${qtyFmt(qty)} ${p.unit} ${p.name}** à ${eur(p.price)}.${stockNote(p, qty)}`);
+      if (qty > p.stock) sugg.push("Teillieferung ist okay");
+      nextStepPrompt(parts, sugg);
+      return { reply: parts.join("\n\n"), suggestions: sugg };
+    }
+    pending = null;
+  }
+
+  // Menge ändern: „mach aus den 50 lieber 80“ / „statt 10 lieber 12 Netzteile“
+  let m = t.match(/(?:aus (?:den |dem )?|statt )(\d+)\b.*?(?:lieber |doch |einfach )?(\d+)/);
+  if (m && /(lieber|doch|mach|ändern|änder|statt|korrigier)/.test(t)) {
+    const [from, to] = [+m[1], +m[2]];
+    const byName = matchProducts(t).filter((p) => cart.items.some((i) => i.sku === p.sku));
+    const target = byName[0] ? cart.items.find((i) => i.sku === byName[0].sku) : cart.items.find((i) => i.qty === from);
+    if (target) {
+      const p = bySku(target.sku);
+      Cart.setQty(target.sku, to);
+      parts.push(`Erledigt: **${p.name}** von ${qtyFmt(from)} auf **${qtyFmt(to)} ${p.unit}** geändert.${stockNote(p, to)}`);
+      nextStepPrompt(parts, sugg);
+      return { reply: parts.join("\n\n"), suggestions: sugg };
+    }
+  }
+
+  // Entfernen
+  if (/(entfern|streich|lösch|raus|weg damit|nicht mehr)/.test(t)) {
+    const targets = matchProducts(t).filter((p) => cart.items.some((i) => i.sku === p.sku));
+    if (targets.length) {
+      targets.forEach((p) => Cart.remove(p.sku));
+      parts.push(`Entfernt: ${targets.map((p) => `**${p.name}**`).join(", ")}.`);
+      if (!cart.items.length) parts.push("Der Warenkorb ist jetzt leer."); else nextStepPrompt(parts, sugg);
+      return { reply: parts.join("\n\n"), suggestions: sugg };
+    }
+  }
+
+  // Positionen hinzufügen
+  const added = [];
+  const unknown = [];
+  let ambiguous = null;
+  for (const line of extractLines(t)) {
+    let hits = matchProducts(line.seg);
+    if (!hits.length) hits = matchProducts(line.before);
+    if (hits.length === 1) {
+      Cart.add(hits[0].sku, line.qty);
+      added.push({ p: hits[0], qty: line.qty });
+    } else if (hits.length > 1 && !ambiguous) {
+      ambiguous = { qty: line.qty, options: hits.map((h) => h.sku) };
+    } else if (!hits.length) {
+      const word = line.seg.trim().split(/\s+(?:und|sowie|bis|an|ans|nach|für)\b|[,.!?]/)[0].trim();
+      if (word.length > 2) unknown.push({ word, qty: line.qty });
+    }
+  }
+
+  // Termin & Adresse
+  const d = parseDate(t);
+  if (d) Cart.setDelivery(d);
+  if (/(so schnell wie möglich|asap|sofort|schnellstmöglich|express)/.test(t)) Cart.setDelivery(nextWorkday(daysAhead(2)));
+  const addr = parseAddress(t);
+  if (addr) Cart.setAddress(addr);
+  if (/teillieferung/.test(t)) parts.push("Alles klar, wir liefern den verfügbaren Bestand zum Wunschtermin und den Rest als Teillieferung nach.");
+
+  if (added.length) {
+    parts.push("Notiert:\n" + added.map(({ p, qty }) => `• **${qtyFmt(qty)} ${p.unit} ${p.name}** (${p.sku}) à ${eur(p.price)}`).join("\n"));
+    for (const { p, qty } of added) { const n = stockNote(p, cart.items.find((i) => i.sku === p.sku).qty); if (n) { parts.push(n.trim()); sugg.push("Teillieferung ist okay", "Späteren Termin wählen"); } }
+  }
+  if (d || addr) {
+    const bits = [];
+    if (d) bits.push(`Liefertermin **${dateFmt(cart.delivery)}**`);
+    if (addr) bits.push(`Lieferung an **${addr.label}**`);
+    parts.push(bits.join(", ") + " übernommen.");
+  }
+  if (unknown.length && !added.length) {
+    const alt = ["NT-1001", "NT-2001", "NT-6001"];
+    pending = { qty: unknown[0].qty, options: alt };
+    parts.push(`„${unknown[0].word}“ führen wir leider nicht im Katalog. Soll ich stattdessen einen dieser Artikel notieren?`);
+    return { reply: parts.join("\n\n"), suggestions: alt.map((x) => bySku(x).name) };
+  }
+  if (ambiguous) {
+    const opts = ambiguous.options.map(bySku);
+    pending = ambiguous;
+    parts.push(`Bei „${qtyFmt(ambiguous.qty)}×“ haben wir mehrere passende Artikel – welchen meinst du?\n` +
+      opts.map((p) => `• **${p.name}** – ${eur(p.price)}, ${p.stock < ambiguous.qty ? `⚠ nur ${p.stock} auf Lager` : `${qtyFmt(p.stock)} auf Lager`}`).join("\n"));
+    return { reply: parts.join("\n\n"), suggestions: opts.map((p) => p.name) };
+  }
+
+  // Abschluss
+  if (/(abschließen|bestellen|fertig|das wars|das war's|absenden|abschicken|zusammenfassung)/.test(t) && !added.length) {
+    const miss = Cart.missing();
+    if (miss.includes("items")) return { reply: "Der Warenkorb ist noch leer. Was möchtest du bestellen?", suggestions: EXAMPLES.slice(0, 2) };
+    if (miss.length) { nextStepPrompt(parts, sugg); return { reply: "Fast geschafft – mir fehlt noch eine Angabe.\n\n" + parts.join("\n\n"), suggestions: sugg }; }
+    cart.awaitingConfirm = true;
+    const issues = Cart.stockIssues();
+    return {
+      reply: `Hier die Zusammenfassung deiner Bestellung.${issues.length ? " Hinweis: Positionen mit Unterbestand werden als Teillieferung nachgeliefert." : ""} Soll ich sie verbindlich absenden?`,
+      summary: true, suggestions: ["Bestellung bestätigen", "Noch etwas ändern"],
+    };
+  }
+  if (/noch etwas (ändern|hinzufügen)|später(en)? termin/.test(t)) {
+    return { reply: /termin/.test(t) ? "Kein Problem – welcher Liefertermin passt stattdessen?" : "Klar – was möchtest du ändern oder ergänzen?", suggestions: /termin/.test(t) ? ["In 2 Wochen", "In 3 Wochen"] : [] };
+  }
+
+  if (!parts.length) {
+    return {
+      reply: "Das habe ich nicht ganz verstanden. Du kannst mir einfach schreiben, was du brauchst – z. B. Menge, Artikel, Termin und Standort.",
+      suggestions: EXAMPLES.slice(0, 2),
+    };
+  }
+  nextStepPrompt(parts, sugg);
+  return { reply: parts.join("\n\n"), suggestions: [...new Set(sugg)].slice(0, 4) };
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Einstellungen
+// ─────────────────────────────────────────────────────────────
+const settings = { apiKey: "", model: "claude-opus-5" };
+try {
+  settings.apiKey = localStorage.getItem("nt.apiKey") || "";
+  settings.model = localStorage.getItem("nt.model") || settings.model;
+} catch {}
+
+function renderMode() {
+  const pill = $("#modePill");
+  pill.classList.toggle("ai", !!settings.apiKey);
+  pill.querySelector(".txt").textContent = settings.apiKey ? "KI aktiv · Claude" : "Demo-Modus";
+}
+
+$("#settingsBtn").addEventListener("click", () => {
+  $("#apiKey").value = settings.apiKey;
+  $("#model").value = settings.model;
+  $("#settings").showModal();
+});
+$("#settings").addEventListener("close", () => {
+  const v = $("#settings").returnValue;
+  if (v === "save") { settings.apiKey = $("#apiKey").value.trim(); settings.model = $("#model").value; }
+  if (v === "clear") settings.apiKey = "";
+  if (v === "save" || v === "clear") {
+    try { localStorage.setItem("nt.apiKey", settings.apiKey); localStorage.setItem("nt.model", settings.model); } catch {}
+    apiHistory.length = 0;
+    renderMode();
+    toast(settings.apiKey ? "Claude ist verbunden" : "Demo-Modus aktiv");
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+//  Init
+// ─────────────────────────────────────────────────────────────
+document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => {
+  document.querySelectorAll("nav button").forEach((x) => x.setAttribute("aria-selected", x === b));
+  $("#view-order").hidden = b.dataset.view !== "order";
+  $("#view-history").hidden = b.dataset.view !== "history";
+}));
+
+$("#chips").innerHTML = EXAMPLES.map((e) => `<button class="chip" type="button">${esc(e)}</button>`).join("");
+document.querySelectorAll(".chip").forEach((c) => c.addEventListener("click", () => send(c.textContent)));
+
+const input = $("#input");
+function autoGrow() { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 140) + "px"; }
+input.addEventListener("input", autoGrow);
+input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input.value); } });
+$("#composer").addEventListener("submit", (e) => { e.preventDefault(); send(input.value); });
+
+$("#orderBtn").addEventListener("click", () => send("Bestellung abschließen"));
+$("#resetBtn").addEventListener("click", () => { Cart.clear(); pending = null; renderCart(); toast("Warenkorb geleert"); });
+
+renderMode();
+renderAll();
+addMessage("bot", "Hallo! Ich bin der **Newtron Bestell-Assistent**. Schreib mir einfach, was du brauchst – Artikel, Menge, Liefertermin und Standort – ganz ohne Formular.\n\nOben findest du Beispiele zum Ausprobieren.");
+</script>
+</body>
+</html>
